@@ -95,7 +95,7 @@
       <span id="listTitle">출석 학생</span> <span class="pill" id="listPill">0</span>
       <span class="grow"></span>
       <label class="muted" style="font-size:12px;font-weight:400">
-        명단파일(로컬)로 미출석자 보기 <input type="file" id="rosterFile" accept=".json,.csv" style="font-size:12px">
+명단 자동표시됨 · 필요시 파일로 교체 <input type="file" id="rosterFile" accept=".json,.csv" style="font-size:12px">
       </label>
       <input id="search" placeholder="이름/학번 검색" style="font-size:13px">
     </h2>
@@ -111,7 +111,7 @@
     </div>
     <p class="muted" style="font-size:12px;margin-top:14px">
       데이터는 Neon DB에 실시간 누적됩니다. 이 화면은 30초마다 갱신됩니다.
-      미출석자 명단은 관리자 PC의 <b>roster.json</b>(또는 명단 CSV)을 위에서 불러오면 표시됩니다(파일은 업로드되지 않고 브라우저 안에서만 사용).</p>
+      미출석자 명단은 로그인 시 서버에서 자동으로 불러옵니다(관리자 키로만 조회). 필요하면 로컬 명단파일로 교체할 수도 있습니다.</p>
   </div>
 </div>
 
@@ -136,6 +136,15 @@ async function apiAll(){
   if(!res.ok) throw new Error('HTTP '+res.status);
   return res.json();
 }
+async function apiRoster(){
+  const res=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'roster',adminKey:KEY})});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+async function loadRoster(){          // 서버에서 명단 자동 로드(관리자 키 전용) → 미출석자 자동 표시
+  try{ const d=await apiRoster(); if(d && d.roster){ roster=d.roster.map(normalizeStudent); render(); } }catch(e){}
+}
 
 /* ---- 로그인 ---- */
 $('loginBtn').onclick=doLogin;
@@ -148,7 +157,7 @@ async function doLogin(){
     const d=await apiAll();
     sessionStorage.setItem('ws_admin',KEY);
     $('login').classList.add('hidden'); $('main').classList.remove('hidden');
-    apply(d); schedule();
+    apply(d); schedule(); loadRoster();
   }catch(e){
     $('loginErr').textContent = e.message==='unauthorized' ? '관리자 키가 올바르지 않습니다.' : ('오류: '+e.message);
   }
@@ -221,7 +230,7 @@ function renderList(){
     rows=Object.values(present).map(r=>[r.name,r.hakbun,r.country,r.bus,r.gender,r.phone,r.scanner,fmt(r.created_at)]);
   }else{
     $('listTitle').textContent='미출석자';
-    if(!roster){ $('tbody').innerHTML=`<tr><td colspan="8" class="muted">미출석자 명단은 위에서 <b>roster.json</b>(또는 명단 CSV)을 불러오면 표시됩니다.</td></tr>`; $('listPill').textContent='?'; return; }
+    if(!roster){ $('tbody').innerHTML=`<tr><td colspan="8" class="muted">명단 불러오는 중… 잠시 후에도 안 뜨면 새로고침 해주세요.</td></tr>`; $('listPill').textContent='?'; return; }
     rows=roster.filter(s=>!present[String(s['학번'])]).map(s=>[s['이름'],s['학번'],s['국가'],s['차량번호'],s['성별'],s['전화번호'],'','']);
   }
   if(q) rows=rows.filter(r=>String(r[0]).toLowerCase().includes(q)||String(r[1]).includes(q));
