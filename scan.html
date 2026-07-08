@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>장흥 물축제 출석 스캐너</title>
+<style>
+  :root{ --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#f1f5f9; --sub:#94a3b8;
+         --ok:#22c55e; --dup:#f59e0b; --err:#ef4444; --brand:#3b82f6; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+  body{display:flex;flex-direction:column;min-height:100dvh}
+  header{padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+  header .t{font-weight:700;font-size:15px}
+  header .who{margin-left:auto;font-size:12px;color:var(--sub);text-align:right;line-height:1.3}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:12px}
+  .btn{background:var(--brand);color:#fff;font-weight:700;font-size:16px;padding:14px 18px;width:100%}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .btn.warn{background:#7f1d1d}
+  input,select{font-family:inherit;font-size:16px;padding:12px;border-radius:10px;
+    border:1px solid var(--line);background:#0b1220;color:var(--txt);width:100%}
+  label{font-size:13px;color:var(--sub);display:block;margin:14px 0 6px}
+
+  /* setup / settings panel */
+  .panel{padding:20px 18px;max-width:520px;margin:0 auto;width:100%}
+  .panel h1{font-size:20px;margin:4px 0 2px}
+  .panel p.desc{color:var(--sub);font-size:13px;margin:0 0 8px}
+
+  /* scanner */
+  #scanWrap{position:relative;flex:1;min-height:0;background:#000;overflow:hidden}
+  #video{width:100%;height:100%;object-fit:cover;display:block}
+  #reticle{position:absolute;inset:0;pointer-events:none;
+    display:flex;align-items:center;justify-content:center}
+  #reticle .box{width:66vw;max-width:320px;aspect-ratio:1;border:3px solid rgba(255,255,255,.85);
+    border-radius:22px;box-shadow:0 0 0 4000px rgba(0,0,0,.35)}
+  #hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;
+    font-size:14px;text-shadow:0 1px 3px #000}
+
+  /* result overlay */
+  #result{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:22px;
+    background:rgba(2,6,23,.72);backdrop-filter:blur(3px)}
+  #result .card{width:100%;max-width:460px;background:var(--card);border-radius:20px;overflow:hidden;
+    border:1px solid var(--line);animation:pop .18s ease}
+  @keyframes pop{from{transform:scale(.94);opacity:.4}to{transform:scale(1);opacity:1}}
+  #result .status{padding:18px;text-align:center;font-size:22px;font-weight:800;color:#fff}
+  #result.ok  .status{background:var(--ok)}
+  #result.dup .status{background:var(--dup)}
+  #result.err .status{background:var(--err)}
+  #result.pending .status{background:#475569}
+  #result .body{padding:16px 18px 6px}
+  #result .name{font-size:26px;font-weight:800;margin:0 0 2px}
+  #result .en{color:var(--sub);font-size:14px;margin:0 0 12px}
+  #result .grid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px}
+  #result .grid .k{color:var(--sub)}
+  #result .foot{padding:14px 18px 18px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:700;margin-left:8px}
+  .badge.b{background:#1e40af}
+
+  /* bottom bar */
+  #bar{background:var(--card);border-top:1px solid var(--line);padding:10px 14px;
+    display:flex;align-items:center;gap:12px}
+  #bar .cnt{font-size:13px;color:var(--sub)}
+  #bar .cnt b{color:var(--txt);font-size:16px}
+  #bar .grow{flex:1}
+  .link{color:var(--brand);font-size:13px;background:none;border:none;padding:6px}
+  .hidden{display:none!important}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .queue{font-size:12px;color:var(--dup);margin-top:8px}
+  small.mut{color:var(--sub);font-size:12px}
+  .logitem{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .logitem .st{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
+  .logitem .st.ok{background:var(--ok)} .logitem .st.dup{background:var(--dup)} .logitem .st.err{background:var(--err)} .logitem .st.pending{background:#64748b}
+</style>
+</head>
+<body>
+
+<!-- ===== SETUP (first run / settings) ===== -->
+<div id="setup" class="panel">
+  <h1>장흥 물축제 출석 스캐너</h1>
+  <p class="desc">인솔 선생님용 · QR을 카메라로 찍으면 출석이 자동 기록됩니다.</p>
+
+  <label>인솔자 이름</label>
+  <input id="teacher" placeholder="예) 홍길동" autocomplete="name">
+
+  <label>담당 차량</label>
+  <select id="bus">
+    <option value="">전체 (차량 무관)</option>
+    <option>1호차</option><option>2호차</option><option>3호차</option>
+    <option>4호차</option><option>5호차</option>
+  </select>
+
+  <div id="gasWrap">
+    <label>서버 주소 (Apps Script 배포 URL)</label>
+    <input id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <small class="mut">설치 안내서에서 배포 후 받은 주소를 붙여넣으세요. 한 번만 입력하면 됩니다.</small>
+  </div>
+
+  <div style="height:18px"></div>
+  <button class="btn" id="startBtn">스캔 시작</button>
+  <div id="setupMsg" class="queue"></div>
+</div>
+
+<!-- ===== SCANNER ===== -->
+<div id="app" class="hidden" style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <header>
+    <span class="t">📷 출석 스캔</span>
+    <span class="who" id="whoLabel"></span>
+  </header>
+
+  <div id="scanWrap">
+    <video id="video" playsinline muted></video>
+    <div id="reticle"><div class="box"></div></div>
+    <div id="hint">QR 코드를 사각형 안에 맞춰주세요</div>
+  </div>
+
+  <div id="bar">
+    <div class="cnt">이 기기 스캔 <b id="cnt">0</b>명 <span id="qcount"></span></div>
+    <div class="grow"></div>
+    <button class="link" id="manualBtn">직접입력</button>
+    <button class="link" id="logBtn">기록</button>
+    <button class="link" id="setBtn">설정</button>
+  </div>
+</div>
+
+<!-- ===== RESULT OVERLAY ===== -->
+<div id="result">
+  <div class="card">
+    <div class="status" id="rStatus"></div>
+    <div class="body">
+      <p class="name" id="rName"></p>
+      <p class="en" id="rEn"></p>
+      <div class="grid" id="rGrid"></div>
+    </div>
+    <div class="foot"><button class="btn" id="rClose">확인 (계속 스캔)</button></div>
+  </div>
+</div>
+
+<!-- ===== MANUAL ENTRY ===== -->
+<div id="manual" class="panel hidden">
+  <h1>학번 직접 입력</h1>
+  <p class="desc">QR이 손상됐을 때 학번을 직접 입력해 출석 처리합니다.</p>
+  <label>학번</label>
+  <input id="manualNum" inputmode="numeric" placeholder="예) 2026005008">
+  <div style="height:14px"></div>
+  <button class="btn" id="manualSend">출석 처리</button>
+  <div style="height:10px"></div>
+  <button class="btn ghost" id="manualBack">뒤로</button>
+</div>
+
+<!-- ===== LOG ===== -->
+<div id="logView" class="panel hidden">
+  <h1>내 스캔 기록</h1>
+  <p class="desc">이 기기에서 보낸 출석 기록입니다.</p>
+  <div id="logList"></div>
+  <div style="height:16px"></div>
+  <button class="btn ghost" id="logBack">뒤로</button>
+</div>
+
+<script src="lib/jsQR.js"></script>
+<script>
+"use strict";
+/* ---------------- config / storage ---------------- */
+const LS = {
+  teacher:'ws_teacher', bus:'ws_bus', gas:'ws_gas',
+  log:'ws_log', queue:'ws_queue'
+};
+const $ = id => document.getElementById(id);
+const get = k => localStorage.getItem(k) || '';
+const set = (k,v) => localStorage.setItem(k,v);
+
+let teacher = get(LS.teacher), bus = get(LS.bus), GAS = get(LS.gas);
+let scanLog = JSON.parse(get(LS.log) || '[]');       // {학번,이름,국가,차량,status,ts}
+let queue   = JSON.parse(get(LS.queue) || '[]');     // failed sends to retry
+let scanCount = scanLog.length;
+
+/* ---------------- QR parse ---------------- */
+// QR content: 학번=..|이름=..|전화번호=..|성별=..|국가=..|학생유형=..|차량번호=..
+function parseQR(text){
+  const o = {};
+  String(text).split('|').forEach(p=>{
+    const i = p.indexOf('=');
+    if(i>0) o[p.slice(0,i).trim()] = p.slice(i+1).trim();
+  });
+  // fallback: pure numeric = 학번 only
+  if(!o['학번']){ const m = String(text).match(/\b(20\d{6,8})\b/); if(m) o['학번']=m[1]; }
+  return o['학번'] ? o : null;
+}
+
+/* ---------------- transport (JSONP GET → Apps Script) ---------------- */
+let jsonpN = 0;
+function gasCall(params, timeoutMs=9000){
+  return new Promise((resolve,reject)=>{
+    if(!GAS) return reject(new Error('서버 주소 미설정'));
+    const cb = '__ws_cb_'+(jsonpN++);
+    const s = document.createElement('script');
+    const to = setTimeout(()=>{ cleanup(); reject(new Error('시간초과')); }, timeoutMs);
+    function cleanup(){ clearTimeout(to); delete window[cb]; s.remove(); }
+    window[cb] = data => { cleanup(); resolve(data); };
+    const q = new URLSearchParams({...params, callback:cb}).toString();
+    s.src = GAS + (GAS.includes('?')?'&':'?') + q;
+    s.onerror = ()=>{ cleanup(); reject(new Error('네트워크 오류')); };
+    document.body.appendChild(s);
+  });
+}
+
+/* ---------------- attendance send (with offline queue) ---------------- */
+async function sendCheckin(hakbun, {fromQueue=false}={}){
+  const payload = { action:'checkin', hakbun, teacher, bus };
+  try{
+    const r = await gasCall(payload);
+    return r; // {ok, status:'checked'|'duplicate'|'notfound', student:{...}, firstTs}
+  }catch(e){
+    if(!fromQueue){ queue.push({hakbun, ts:Date.now()}); persistQueue(); }
+    throw e;
+  }
+}
+function persistQueue(){ set(LS.queue, JSON.stringify(queue)); renderQueueCount(); }
+function persistLog(){ set(LS.log, JSON.stringify(scanLog.slice(-500))); }
+
+async function flushQueue(){
+  if(!queue.length || !GAS) return;
+  const pending = queue.slice(); queue = []; persistQueue();
+  for(const item of pending){
+    try{ await sendCheckin(item.hakbun, {fromQueue:true}); }
+    catch(e){ queue.push(item); }
+  }
+  persistQueue();
+}
+setInterval(flushQueue, 15000);
+window.addEventListener('online', flushQueue);
+
+/* ---------------- UI: result overlay ---------------- */
+let overlayOpen = false;
+function showResult(kind, {student, hakbun, qr, note}={}){
+  overlayOpen = true;
+  const el = $('result'); el.className=''; el.classList.add(kind);
+  const map = {ok:'✅ 출석 완료', dup:'⚠️ 이미 출석함', err:'⛔ '+(note||'명단에 없음'), pending:'📶 전송 대기(오프라인)'};
+  $('rStatus').textContent = map[kind] || '';
+  const s = student || qr || {};
+  $('rName').textContent = s['이름'] || s['한글이름'] || '(이름없음)';
+  $('rEn').textContent = s['영어이름'] || '';
+  const rows = [
+    ['학번', hakbun || s['학번'] || ''],
+    ['국가', s['국가'] || ''],
+    ['차량', s['차량번호'] || ''],
+    ['성별', s['성별'] || ''],
+    ['전화', s['전화번호'] || ''],
+  ].filter(r=>r[1]);
+  $('rGrid').innerHTML = rows.map(r=>`<div class="k">${r[0]}</div><div>${esc(r[1])}</div>`).join('');
+  el.style.display='flex';
+  beep(kind); vibrate(kind);
+}
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+$('rClose').onclick = ()=>{ $('result').style.display='none'; overlayOpen=false; resumeScan(); };
+
+/* feedback */
+let ac;
+function beep(kind){
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.frequency.value = kind==='ok'?880 : kind==='dup'?520 : 260;
+    g.gain.value=.15; o.start();
+    o.stop(ac.currentTime + (kind==='ok'?0.12:0.25));
+  }catch(e){}
+}
+function vibrate(kind){ try{ navigator.vibrate && navigator.vibrate(kind==='ok'?80:[60,50,60]); }catch(e){} }
+
+/* ---------------- scanner loop ---------------- */
+let stream, scanning=false, lastCode='', lastTime=0, raf;
+const video=$('video');
+const canvas=document.createElement('canvas'); const cctx=canvas.getContext('2d',{willReadFrequently:true});
+
+async function startCamera(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} }, audio:false });
+    video.srcObject=stream; await video.play();
+    scanning=true; tick();
+  }catch(e){
+    $('hint').textContent='카메라를 열 수 없습니다: '+e.message+' (HTTPS 주소인지 확인하세요)';
+  }
+}
+function resumeScan(){ scanning=true; lastCode=''; if(!raf) tick(); }
+function tick(){
+  raf = requestAnimationFrame(tick);
+  if(!scanning || overlayOpen) return;
+  if(video.readyState !== video.HAVE_ENOUGH_DATA) return;
+  const w=video.videoWidth, h=video.videoHeight; if(!w) return;
+  canvas.width=w; canvas.height=h; cctx.drawImage(video,0,0,w,h);
+  let img; try{ img=cctx.getImageData(0,0,w,h);}catch(e){return;}
+  const code = jsQR(img.data, w, h, {inversionAttempts:'attemptBoth'});
+  if(code && code.data){
+    const now=Date.now();
+    if(code.data===lastCode && now-lastTime<2500) return; // debounce same code
+    lastCode=code.data; lastTime=now;
+    onDecoded(code.data);
+  }
+}
+
+async function onDecoded(text){
+  const qr = parseQR(text);
+  if(!qr){ return; } // not our QR, ignore silently
+  scanning=false;                 // pause while we confirm
+  handleHakbun(qr['학번'], qr);
+}
+
+async function handleHakbun(hakbun, qr){
+  showResult('pending', {qr, hakbun});     // instant optimistic feedback
+  try{
+    const r = await sendCheckin(hakbun);
+    if(r && r.ok){
+      const kind = r.status==='duplicate' ? 'dup' : r.status==='notfound' ? 'err' : 'ok';
+      const note = r.status==='notfound' ? '명단에 없는 학번' : '';
+      showResult(kind, {student:r.student||qr, hakbun, note});
+      recordLog(hakbun, r.student||qr, kind);
+    }else{
+      showResult('err', {qr, hakbun, note:(r&&r.message)||'응답 오류'});
+      recordLog(hakbun, qr, 'err');
+    }
+  }catch(e){
+    // offline / failed → queued, mark pending
+    showResult('pending', {qr, hakbun});
+    recordLog(hakbun, qr, 'pending');
+  }
+}
+
+function recordLog(hakbun, s, status){
+  scanCount++;
+  scanLog.push({학번:hakbun, 이름:s['이름']||s['한글이름']||'', 국가:s['국가']||'',
+                차량:s['차량번호']||'', status, ts:Date.now()});
+  persistLog();
+  $('cnt').textContent = scanCount;
+}
+
+/* ---------------- views ---------------- */
+function show(view){ ['setup','app','manual','logView'].forEach(v=>$(v).classList.toggle('hidden', v!==view)); }
+function renderQueueCount(){
+  $('qcount') && ( $('qcount').textContent = queue.length? `· 전송대기 ${queue.length}` : '' );
+  $('setupMsg');
+}
+function renderWho(){ $('whoLabel').innerHTML = `${esc(teacher||'이름미설정')}<br>${esc(bus||'전체')}`; }
+
+/* start */
+$('startBtn').onclick = ()=>{
+  teacher=$('teacher').value.trim(); bus=$('bus').value; GAS=$('gasUrl').value.trim();
+  if(!teacher){ $('setupMsg').textContent='인솔자 이름을 입력하세요.'; return; }
+  if(!(/^https:\/\/.+/.test(GAS) ||
+       /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?\//.test(GAS))){
+    $('setupMsg').textContent='올바른 서버 주소(https://... 또는 .../exec)를 입력하세요.'; return; }
+  set(LS.teacher,teacher); set(LS.bus,bus); set(LS.gas,GAS);
+  renderWho(); renderQueueCount(); show('app'); startCamera();
+};
+
+/* manual entry */
+$('manualBtn').onclick=()=>{ scanning=false; show('manual'); $('manualNum').value=''; setTimeout(()=>$('manualNum').focus(),50); };
+$('manualBack').onclick=()=>{ show('app'); resumeScan(); };
+$('manualSend').onclick=()=>{
+  const h=$('manualNum').value.trim();
+  if(!/^\d{6,10}$/.test(h)){ alert('학번을 정확히 입력하세요.'); return; }
+  show('app'); handleHakbun(h, {'학번':h});
+};
+
+/* log */
+$('logBtn').onclick=()=>{ scanning=false; renderLog(); show('logView'); };
+$('logBack').onclick=()=>{ show('app'); resumeScan(); };
+function renderLog(){
+  const kmap={ok:'출석',dup:'이미출석',err:'명단없음',pending:'전송대기'};
+  $('logList').innerHTML = scanLog.slice().reverse().map(e=>{
+    const t=new Date(e.ts); const hh=String(t.getHours()).padStart(2,'0'), mm=String(t.getMinutes()).padStart(2,'0');
+    return `<div class="logitem"><span class="st ${e.status}"></span>
+      <div style="flex:1"><b>${esc(e.이름||e.학번)}</b> <small class="mut">${esc(e.국가)} ${esc(e.차량)}</small>
+      <div><small class="mut">${e.학번} · ${hh}:${mm} · ${kmap[e.status]||e.status}</small></div></div></div>`;
+  }).join('') || '<p class="desc">아직 기록이 없습니다.</p>';
+}
+
+/* settings */
+$('setBtn').onclick=()=>{ scanning=false;
+  $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value=GAS;
+  $('startBtn').textContent='저장하고 계속'; show('setup'); };
+
+/* init */
+(function init(){
+  renderQueueCount();
+  if(teacher && GAS){ // returning user
+    $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value=GAS;
+    renderWho(); show('app'); $('cnt').textContent=scanCount; startCamera();
+  }else{
+    $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value=GAS;
+    show('setup');
+  }
+})();
+</script>
+</body>
+</html>
