@@ -18,31 +18,23 @@
   button{font-family:inherit;cursor:pointer;border:none;border-radius:12px}
   .btn{background:var(--brand);color:#fff;font-weight:700;font-size:16px;padding:14px 18px;width:100%}
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
-  .btn.warn{background:#7f1d1d}
   input,select{font-family:inherit;font-size:16px;padding:12px;border-radius:10px;
     border:1px solid var(--line);background:#0b1220;color:var(--txt);width:100%}
   label{font-size:13px;color:var(--sub);display:block;margin:14px 0 6px}
-
-  /* setup / settings panel */
   .panel{padding:20px 18px;max-width:520px;margin:0 auto;width:100%}
   .panel h1{font-size:20px;margin:4px 0 2px}
   .panel p.desc{color:var(--sub);font-size:13px;margin:0 0 8px}
 
-  /* scanner */
   #scanWrap{position:relative;flex:1;min-height:0;background:#000;overflow:hidden}
   #video{width:100%;height:100%;object-fit:cover;display:block}
-  #reticle{position:absolute;inset:0;pointer-events:none;
-    display:flex;align-items:center;justify-content:center}
+  #reticle{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
   #reticle .box{width:66vw;max-width:320px;aspect-ratio:1;border:3px solid rgba(255,255,255,.85);
     border-radius:22px;box-shadow:0 0 0 4000px rgba(0,0,0,.35)}
-  #hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;
-    font-size:14px;text-shadow:0 1px 3px #000}
+  #hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;font-size:14px;text-shadow:0 1px 3px #000}
 
-  /* result overlay */
   #result{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:22px;
     background:rgba(2,6,23,.72);backdrop-filter:blur(3px)}
-  #result .card{width:100%;max-width:460px;background:var(--card);border-radius:20px;overflow:hidden;
-    border:1px solid var(--line);animation:pop .18s ease}
+  #result .card{width:100%;max-width:460px;background:var(--card);border-radius:20px;overflow:hidden;border:1px solid var(--line);animation:pop .18s ease}
   @keyframes pop{from{transform:scale(.94);opacity:.4}to{transform:scale(1);opacity:1}}
   #result .status{padding:18px;text-align:center;font-size:22px;font-weight:800;color:#fff}
   #result.ok  .status{background:var(--ok)}
@@ -55,49 +47,36 @@
   #result .grid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px}
   #result .grid .k{color:var(--sub)}
   #result .foot{padding:14px 18px 18px}
-  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:700;margin-left:8px}
-  .badge.b{background:#1e40af}
 
-  /* bottom bar */
-  #bar{background:var(--card);border-top:1px solid var(--line);padding:10px 14px;
-    display:flex;align-items:center;gap:12px}
+  #bar{background:var(--card);border-top:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:12px}
   #bar .cnt{font-size:13px;color:var(--sub)}
   #bar .cnt b{color:var(--txt);font-size:16px}
   #bar .grow{flex:1}
   .link{color:var(--brand);font-size:13px;background:none;border:none;padding:6px}
   .hidden{display:none!important}
-  .row{display:flex;gap:10px}
-  .row>*{flex:1}
   .queue{font-size:12px;color:var(--dup);margin-top:8px}
   small.mut{color:var(--sub);font-size:12px}
   .logitem{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
   .logitem .st{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
   .logitem .st.ok{background:var(--ok)} .logitem .st.dup{background:var(--dup)} .logitem .st.err{background:var(--err)} .logitem .st.pending{background:#64748b}
+  .rowbtns{display:flex;gap:10px}
+  .rowbtns>*{flex:1}
 </style>
 </head>
 <body>
 
-<!-- ===== SETUP (first run / settings) ===== -->
+<!-- ===== SETUP (인솔자 이름·차량만) ===== -->
 <div id="setup" class="panel">
   <h1>장흥 물축제 출석 스캐너</h1>
   <p class="desc">인솔 선생님용 · QR을 카메라로 찍으면 출석이 자동 기록됩니다.</p>
-
   <label>인솔자 이름</label>
   <input id="teacher" placeholder="예) 홍길동" autocomplete="name">
-
   <label>담당 차량</label>
   <select id="bus">
     <option value="">전체 (차량 무관)</option>
     <option>1호차</option><option>2호차</option><option>3호차</option>
     <option>4호차</option><option>5호차</option>
   </select>
-
-  <div id="gasWrap">
-    <label>서버 주소 (Apps Script 배포 URL)</label>
-    <input id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" autocapitalize="off" autocorrect="off" spellcheck="false">
-    <small class="mut">설치 안내서에서 배포 후 받은 주소를 붙여넣으세요. 한 번만 입력하면 됩니다.</small>
-  </div>
-
   <div style="height:18px"></div>
   <button class="btn" id="startBtn">스캔 시작</button>
   <div id="setupMsg" class="queue"></div>
@@ -109,18 +88,16 @@
     <span class="t">📷 출석 스캔</span>
     <span class="who" id="whoLabel"></span>
   </header>
-
   <div id="scanWrap">
     <video id="video" playsinline muted></video>
     <div id="reticle"><div class="box"></div></div>
     <div id="hint">QR 코드를 사각형 안에 맞춰주세요</div>
   </div>
-
   <div id="bar">
-    <div class="cnt">이 기기 스캔 <b id="cnt">0</b>명 <span id="qcount"></span></div>
+    <div class="cnt">내 스캔 <b id="cnt">0</b>명 <span id="qcount"></span></div>
     <div class="grow"></div>
     <button class="link" id="manualBtn">직접입력</button>
-    <button class="link" id="logBtn">기록</button>
+    <button class="link" id="logBtn">내 명단</button>
     <button class="link" id="setBtn">설정</button>
   </div>
 </div>
@@ -150,89 +127,72 @@
   <button class="btn ghost" id="manualBack">뒤로</button>
 </div>
 
-<!-- ===== LOG ===== -->
+<!-- ===== 내 명단 (LOG) ===== -->
 <div id="logView" class="panel hidden">
-  <h1>내 스캔 기록</h1>
-  <p class="desc">이 기기에서 보낸 출석 기록입니다.</p>
+  <h1>내가 스캔한 학생</h1>
+  <p class="desc">이 기기에서 <b id="logWho"></b> 선생님이 스캔한 명단입니다.</p>
+  <div class="rowbtns">
+    <button class="btn ghost" id="logCsv">엑셀(CSV) 저장</button>
+    <button class="btn ghost" id="logBack">뒤로</button>
+  </div>
+  <div style="height:12px"></div>
   <div id="logList"></div>
-  <div style="height:16px"></div>
-  <button class="btn ghost" id="logBack">뒤로</button>
 </div>
 
 <script src="lib/jsQR.js"></script>
 <script>
 "use strict";
 /* ================= 관리자 설정 =================
-   아래 따옴표 안에 Apps Script 배포 URL(.../exec)을 한 번만 넣으면,
-   인솔 선생님 화면에서는 '서버 주소' 입력란이 사라지고 이름·차량만 고르면 됩니다.
-   예) const HARDCODED_GAS = "https://script.google.com/macros/s/AKfy.../exec";
-   비워두면(""), 테스트용으로 입력란이 나타납니다. */
-const HARDCODED_GAS = "";
+   Cloudflare Worker(프록시) 주소. Worker 이름을 mulchukje-proxy 로 배포하면 아래 그대로 사용,
+   다르게 배포했다면 이 한 줄만 바꾸면 됩니다. (선생님은 아무것도 입력하지 않습니다) */
+const WORKER_URL = "https://mulchukje-proxy.hubertjung84.workers.dev";
 /* ============================================== */
 
-/* ---------------- config / storage ---------------- */
-const LS = {
-  teacher:'ws_teacher', bus:'ws_bus', gas:'ws_gas',
-  log:'ws_log', queue:'ws_queue'
-};
+const LS = { teacher:'ws_teacher', bus:'ws_bus', log:'ws_log', queue:'ws_queue' };
 const $ = id => document.getElementById(id);
 const get = k => localStorage.getItem(k) || '';
 const set = (k,v) => localStorage.setItem(k,v);
 
-let teacher = get(LS.teacher), bus = get(LS.bus), GAS = HARDCODED_GAS || get(LS.gas);
-let scanLog = JSON.parse(get(LS.log) || '[]');       // {학번,이름,국가,차량,status,ts}
-let queue   = JSON.parse(get(LS.queue) || '[]');     // failed sends to retry
+let teacher = get(LS.teacher), bus = get(LS.bus);
+let scanLog = JSON.parse(get(LS.log) || '[]');
+let queue   = JSON.parse(get(LS.queue) || '[]');
 let scanCount = scanLog.length;
 
 /* ---------------- QR parse ---------------- */
-// QR content: 학번=..|이름=..|전화번호=..|성별=..|국가=..|학생유형=..|차량번호=..
 function parseQR(text){
   const o = {};
-  String(text).split('|').forEach(p=>{
-    const i = p.indexOf('=');
-    if(i>0) o[p.slice(0,i).trim()] = p.slice(i+1).trim();
-  });
-  // fallback: pure numeric = 학번 only
-  if(!o['학번']){ const m = String(text).match(/\b(20\d{6,8})\b/); if(m) o['학번']=m[1]; }
+  String(text).split('|').forEach(p=>{ const i=p.indexOf('='); if(i>0) o[p.slice(0,i).trim()]=p.slice(i+1).trim(); });
+  if(!o['학번']){ const m=String(text).match(/\b(20\d{6,8})\b/); if(m) o['학번']=m[1]; }
   return o['학번'] ? o : null;
 }
 
-/* ---------------- transport (JSONP GET → Apps Script) ---------------- */
-let jsonpN = 0;
-function gasCall(params, timeoutMs=9000){
-  return new Promise((resolve,reject)=>{
-    if(!GAS) return reject(new Error('서버 주소 미설정'));
-    const cb = '__ws_cb_'+(jsonpN++);
-    const s = document.createElement('script');
-    const to = setTimeout(()=>{ cleanup(); reject(new Error('시간초과')); }, timeoutMs);
-    function cleanup(){ clearTimeout(to); delete window[cb]; s.remove(); }
-    window[cb] = data => { cleanup(); resolve(data); };
-    const q = new URLSearchParams({...params, callback:cb}).toString();
-    s.src = GAS + (GAS.includes('?')?'&':'?') + q;
-    s.onerror = ()=>{ cleanup(); reject(new Error('네트워크 오류')); };
-    document.body.appendChild(s);
+/* ---------------- transport (fetch → Worker) ---------------- */
+async function apiCheckin(student){
+  const res = await fetch(WORKER_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ action:'checkin', student, teacher, bus }),
   });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // {ok, status}
 }
 
-/* ---------------- attendance send (with offline queue) ---------------- */
-async function sendCheckin(hakbun, {fromQueue=false}={}){
-  const payload = { action:'checkin', hakbun, teacher, bus };
+async function sendCheckin(student, {fromQueue=false}={}){
   try{
-    const r = await gasCall(payload);
-    return r; // {ok, status:'checked'|'duplicate'|'notfound', student:{...}, firstTs}
+    return await apiCheckin(student);
   }catch(e){
-    if(!fromQueue){ queue.push({hakbun, ts:Date.now()}); persistQueue(); }
+    if(!fromQueue){ queue.push({student, ts:Date.now()}); persistQueue(); }
     throw e;
   }
 }
 function persistQueue(){ set(LS.queue, JSON.stringify(queue)); renderQueueCount(); }
-function persistLog(){ set(LS.log, JSON.stringify(scanLog.slice(-500))); }
+function persistLog(){ set(LS.log, JSON.stringify(scanLog.slice(-1000))); }
 
 async function flushQueue(){
-  if(!queue.length || !GAS) return;
+  if(!queue.length) return;
   const pending = queue.slice(); queue = []; persistQueue();
   for(const item of pending){
-    try{ await sendCheckin(item.hakbun, {fromQueue:true}); }
+    try{ await sendCheckin(item.student, {fromQueue:true}); }
     catch(e){ queue.push(item); }
   }
   persistQueue();
@@ -240,173 +200,129 @@ async function flushQueue(){
 setInterval(flushQueue, 15000);
 window.addEventListener('online', flushQueue);
 
-/* ---------------- UI: result overlay ---------------- */
-let overlayOpen = false;
-function showResult(kind, {student, hakbun, qr, note}={}){
-  overlayOpen = true;
-  const el = $('result'); el.className=''; el.classList.add(kind);
-  const map = {ok:'✅ 출석 완료', dup:'⚠️ 이미 출석함', err:'⛔ '+(note||'명단에 없음'), pending:'📶 전송 대기(오프라인)'};
-  $('rStatus').textContent = map[kind] || '';
-  const s = student || qr || {};
-  $('rName').textContent = s['이름'] || s['한글이름'] || '(이름없음)';
-  $('rEn').textContent = s['영어이름'] || '';
-  const rows = [
-    ['학번', hakbun || s['학번'] || ''],
-    ['국가', s['국가'] || ''],
-    ['차량', s['차량번호'] || ''],
-    ['성별', s['성별'] || ''],
-    ['전화', s['전화번호'] || ''],
-  ].filter(r=>r[1]);
-  $('rGrid').innerHTML = rows.map(r=>`<div class="k">${r[0]}</div><div>${esc(r[1])}</div>`).join('');
-  el.style.display='flex';
-  beep(kind); vibrate(kind);
+/* ---------------- result overlay ---------------- */
+let overlayOpen=false;
+function showResult(kind, student){
+  overlayOpen=true;
+  const el=$('result'); el.className=''; el.classList.add(kind);
+  const map={ok:'✅ 출석 완료', dup:'⚠️ 이미 출석함', err:'⛔ 전송 실패', pending:'📶 전송 대기(오프라인)'};
+  $('rStatus').textContent=map[kind]||'';
+  const s=student||{};
+  $('rName').textContent=s['이름']||'(이름없음)';
+  $('rEn').textContent='';
+  const rows=[['학번',s['학번']],['국가',s['국가']],['차량',s['차량번호']],['성별',s['성별']],['전화',s['전화번호']]].filter(r=>r[1]);
+  $('rGrid').innerHTML=rows.map(r=>`<div class="k">${r[0]}</div><div>${esc(r[1])}</div>`).join('');
+  el.style.display='flex'; beep(kind); vibrate(kind);
 }
-function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-$('rClose').onclick = ()=>{ $('result').style.display='none'; overlayOpen=false; resumeScan(); };
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+$('rClose').onclick=()=>{ $('result').style.display='none'; overlayOpen=false; resumeScan(); };
 
-/* feedback */
 let ac;
-function beep(kind){
-  try{
-    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
-    const o=ac.createOscillator(), g=ac.createGain();
-    o.connect(g); g.connect(ac.destination);
-    o.frequency.value = kind==='ok'?880 : kind==='dup'?520 : 260;
-    g.gain.value=.15; o.start();
-    o.stop(ac.currentTime + (kind==='ok'?0.12:0.25));
-  }catch(e){}
-}
+function beep(kind){ try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+  const o=ac.createOscillator(),g=ac.createGain(); o.connect(g); g.connect(ac.destination);
+  o.frequency.value=kind==='ok'?880:kind==='dup'?520:260; g.gain.value=.15; o.start();
+  o.stop(ac.currentTime+(kind==='ok'?0.12:0.25)); }catch(e){} }
 function vibrate(kind){ try{ navigator.vibrate && navigator.vibrate(kind==='ok'?80:[60,50,60]); }catch(e){} }
 
 /* ---------------- scanner loop ---------------- */
 let stream, scanning=false, lastCode='', lastTime=0, raf;
-const video=$('video');
-const canvas=document.createElement('canvas'); const cctx=canvas.getContext('2d',{willReadFrequently:true});
-
+const video=$('video'), canvas=document.createElement('canvas'), cctx=canvas.getContext('2d',{willReadFrequently:true});
 async function startCamera(){
   try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} }, audio:false });
-    video.srcObject=stream; await video.play();
-    scanning=true; tick();
-  }catch(e){
-    $('hint').textContent='카메라를 열 수 없습니다: '+e.message+' (HTTPS 주소인지 확인하세요)';
-  }
+    stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} }, audio:false });
+    video.srcObject=stream; await video.play(); scanning=true; tick();
+  }catch(e){ $('hint').textContent='카메라를 열 수 없습니다: '+e.message+' (HTTPS 주소인지 확인)'; }
 }
 function resumeScan(){ scanning=true; lastCode=''; if(!raf) tick(); }
 function tick(){
-  raf = requestAnimationFrame(tick);
-  if(!scanning || overlayOpen) return;
-  if(video.readyState !== video.HAVE_ENOUGH_DATA) return;
-  const w=video.videoWidth, h=video.videoHeight; if(!w) return;
+  raf=requestAnimationFrame(tick);
+  if(!scanning||overlayOpen) return;
+  if(video.readyState!==video.HAVE_ENOUGH_DATA) return;
+  const w=video.videoWidth,h=video.videoHeight; if(!w) return;
   canvas.width=w; canvas.height=h; cctx.drawImage(video,0,0,w,h);
   let img; try{ img=cctx.getImageData(0,0,w,h);}catch(e){return;}
-  const code = jsQR(img.data, w, h, {inversionAttempts:'attemptBoth'});
-  if(code && code.data){
+  const code=jsQR(img.data,w,h,{inversionAttempts:'attemptBoth'});
+  if(code&&code.data){
     const now=Date.now();
-    if(code.data===lastCode && now-lastTime<2500) return; // debounce same code
-    lastCode=code.data; lastTime=now;
-    onDecoded(code.data);
+    if(code.data===lastCode&&now-lastTime<2500) return;
+    lastCode=code.data; lastTime=now; onDecoded(code.data);
   }
 }
+function onDecoded(text){ const qr=parseQR(text); if(!qr) return; scanning=false; handleStudent(qr); }
 
-async function onDecoded(text){
-  const qr = parseQR(text);
-  if(!qr){ return; } // not our QR, ignore silently
-  scanning=false;                 // pause while we confirm
-  handleHakbun(qr['학번'], qr);
-}
-
-async function handleHakbun(hakbun, qr){
-  showResult('pending', {qr, hakbun});     // instant optimistic feedback
+async function handleStudent(qr){
+  showResult('pending', qr);
   try{
-    const r = await sendCheckin(hakbun);
-    if(r && r.ok){
-      const kind = r.status==='duplicate' ? 'dup' : r.status==='notfound' ? 'err' : 'ok';
-      const note = r.status==='notfound' ? '명단에 없는 학번' : '';
-      showResult(kind, {student:r.student||qr, hakbun, note});
-      recordLog(hakbun, r.student||qr, kind);
-    }else{
-      showResult('err', {qr, hakbun, note:(r&&r.message)||'응답 오류'});
-      recordLog(hakbun, qr, 'err');
-    }
+    const r=await sendCheckin(qr);
+    const kind = (r && r.status==='duplicate') ? 'dup' : 'ok';
+    showResult(kind, qr); recordLog(qr, kind);
   }catch(e){
-    // offline / failed → queued, mark pending
-    showResult('pending', {qr, hakbun});
-    recordLog(hakbun, qr, 'pending');
+    showResult('pending', qr); recordLog(qr, 'pending');
   }
 }
-
-function recordLog(hakbun, s, status){
+function recordLog(s, status){
   scanCount++;
-  scanLog.push({학번:hakbun, 이름:s['이름']||s['한글이름']||'', 국가:s['국가']||'',
-                차량:s['차량번호']||'', status, ts:Date.now()});
-  persistLog();
-  $('cnt').textContent = scanCount;
+  scanLog.push({학번:s['학번']||'', 이름:s['이름']||'', 국가:s['국가']||'', 차량:s['차량번호']||'',
+                전화:s['전화번호']||'', 성별:s['성별']||'', status, ts:Date.now()});
+  persistLog(); $('cnt').textContent=scanCount;
 }
 
 /* ---------------- views ---------------- */
 function show(view){ ['setup','app','manual','logView'].forEach(v=>$(v).classList.toggle('hidden', v!==view)); }
-function renderQueueCount(){
-  $('qcount') && ( $('qcount').textContent = queue.length? `· 전송대기 ${queue.length}` : '' );
-  $('setupMsg');
-}
-function renderWho(){ $('whoLabel').innerHTML = `${esc(teacher||'이름미설정')}<br>${esc(bus||'전체')}`; }
+function renderQueueCount(){ if($('qcount')) $('qcount').textContent = queue.length? `· 전송대기 ${queue.length}` : ''; }
+function renderWho(){ $('whoLabel').innerHTML=`${esc(teacher||'이름미설정')}<br>${esc(bus||'전체')}`; }
 
-/* start */
-$('startBtn').onclick = ()=>{
+$('startBtn').onclick=()=>{
   teacher=$('teacher').value.trim(); bus=$('bus').value;
   if(!teacher){ $('setupMsg').textContent='인솔자 이름을 입력하세요.'; return; }
-  if(HARDCODED_GAS){
-    GAS = HARDCODED_GAS;                      // 관리자가 박아둔 주소 사용 (선생님은 입력 불필요)
-  }else{
-    GAS=$('gasUrl').value.trim();
-    if(!(/^https:\/\/.+/.test(GAS) ||
-         /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?\//.test(GAS))){
-      $('setupMsg').textContent='올바른 서버 주소(https://... 또는 .../exec)를 입력하세요.'; return; }
-    set(LS.gas,GAS);
-  }
   set(LS.teacher,teacher); set(LS.bus,bus);
   renderWho(); renderQueueCount(); show('app'); startCamera();
 };
 
-/* manual entry */
 $('manualBtn').onclick=()=>{ scanning=false; show('manual'); $('manualNum').value=''; setTimeout(()=>$('manualNum').focus(),50); };
 $('manualBack').onclick=()=>{ show('app'); resumeScan(); };
-$('manualSend').onclick=()=>{
-  const h=$('manualNum').value.trim();
+$('manualSend').onclick=()=>{ const h=$('manualNum').value.trim();
   if(!/^\d{6,10}$/.test(h)){ alert('학번을 정확히 입력하세요.'); return; }
-  show('app'); handleHakbun(h, {'학번':h});
-};
+  show('app'); handleStudent({'학번':h}); };
 
-/* log */
 $('logBtn').onclick=()=>{ scanning=false; renderLog(); show('logView'); };
 $('logBack').onclick=()=>{ show('app'); resumeScan(); };
 function renderLog(){
-  const kmap={ok:'출석',dup:'이미출석',err:'명단없음',pending:'전송대기'};
-  $('logList').innerHTML = scanLog.slice().reverse().map(e=>{
-    const t=new Date(e.ts); const hh=String(t.getHours()).padStart(2,'0'), mm=String(t.getMinutes()).padStart(2,'0');
+  $('logWho').textContent=teacher||'';
+  const kmap={ok:'출석',dup:'이미출석',err:'실패',pending:'전송대기'};
+  $('logList').innerHTML=scanLog.slice().reverse().map(e=>{
+    const t=new Date(e.ts), hh=String(t.getHours()).padStart(2,'0'), mm=String(t.getMinutes()).padStart(2,'0');
     return `<div class="logitem"><span class="st ${e.status}"></span>
       <div style="flex:1"><b>${esc(e.이름||e.학번)}</b> <small class="mut">${esc(e.국가)} ${esc(e.차량)}</small>
-      <div><small class="mut">${e.학번} · ${hh}:${mm} · ${kmap[e.status]||e.status}</small></div></div></div>`;
-  }).join('') || '<p class="desc">아직 기록이 없습니다.</p>';
+      <div><small class="mut">${esc(e.학번)} · ${hh}:${mm} · ${kmap[e.status]||e.status}</small></div></div></div>`;
+  }).join('') || '<p class="desc">아직 스캔한 학생이 없습니다.</p>';
+}
+$('logCsv').onclick=()=>{
+  if(!scanLog.length){ alert('저장할 명단이 없습니다.'); return; }
+  const head=['학번','이름','국가','차량','성별','전화','상태','시각'];
+  const kmap={ok:'출석',dup:'이미출석',err:'실패',pending:'전송대기'};
+  const rows=scanLog.map(e=>{ const t=new Date(e.ts);
+    const ts=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+    return [e.학번,e.이름,e.국가,e.차량,e.성별,e.전화,kmap[e.status]||e.status,ts]; });
+  downloadCsv(head, rows, `내스캔_${teacher||'명단'}.csv`);
+};
+function downloadCsv(head, rows, filename){
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const csv='﻿'+[head.map(q).join(',')].concat(rows.map(r=>r.map(q).join(','))).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
-/* settings */
-$('setBtn').onclick=()=>{ scanning=false;
-  $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value=GAS;
+$('setBtn').onclick=()=>{ scanning=false; $('teacher').value=teacher; $('bus').value=bus;
   $('startBtn').textContent='저장하고 계속'; show('setup'); };
 
 /* init */
 (function init(){
   renderQueueCount();
-  if(HARDCODED_GAS){ $('gasWrap').classList.add('hidden'); }  // 선생님 화면에서 서버주소 숨김
-  $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value = HARDCODED_GAS ? '' : GAS;
-  if(teacher && GAS){ // returning user → 바로 스캔
-    renderWho(); show('app'); $('cnt').textContent=scanCount; startCamera();
-  }else{
-    show('setup');
-  }
+  $('teacher').value=teacher; $('bus').value=bus;
+  if(teacher){ renderWho(); show('app'); $('cnt').textContent=scanCount; startCamera(); }
+  else show('setup');
 })();
 </script>
 </body>

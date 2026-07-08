@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>장흥 물축제 출석 · 관리자</title>
+<style>
+  :root{ --bg:#0b1220; --card:#141d2e; --line:#2a3750; --txt:#e8eef7; --sub:#8ca0bd;
+         --ok:#22c55e; --track:#243149; --brand:#3b82f6; --warn:#f59e0b; }
+  @media (prefers-color-scheme:light){ :root{ --bg:#f4f6fb; --card:#fff; --line:#e2e8f0; --txt:#0f172a; --sub:#64748b; --track:#e8edf5; } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+  header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:800}
+  .updated{color:var(--sub);font-size:12px}
+  .grow{flex:1}
+  .wrap{max-width:1040px;margin:0 auto;padding:18px}
+  .hero{display:flex;align-items:baseline;gap:14px;margin:6px 0 18px;flex-wrap:wrap}
+  .hero .big{font-size:52px;font-weight:800;line-height:1}
+  .hero .of{font-size:20px;color:var(--sub)} .hero .pct{font-size:20px;color:var(--ok);font-weight:700}
+  .bar{height:14px;border-radius:999px;background:var(--track);overflow:hidden;margin:10px 0 22px}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);width:0;transition:width .5s}
+  h2{font-size:14px;color:var(--sub);margin:22px 0 10px;font-weight:700}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .c .h{display:flex;justify-content:space-between;align-items:baseline}
+  .c .name{font-weight:700;font-size:15px}
+  .c .num{font-size:13px;color:var(--sub)} .c .num b{color:var(--txt);font-size:16px}
+  .mini{height:8px;border-radius:999px;background:var(--track);overflow:hidden;margin-top:10px}
+  .mini>i{display:block;height:100%;background:var(--ok);width:0;transition:width .5s}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--sub);font-weight:600;font-size:12px;position:sticky;top:0;background:var(--card)}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:auto;max-height:60vh}
+  .muted{color:var(--sub)} .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--track);font-size:12px}
+  input{font:inherit;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--txt)}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--txt);border-radius:9px;padding:9px 14px;font-weight:600}
+  button.primary{background:var(--brand);color:#fff;border:none}
+  .login{max-width:420px;margin:12vh auto;padding:26px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+  .login h1{margin:0 0 6px;font-size:20px}
+  .login p{color:var(--sub);font-size:13px;margin:0 0 16px}
+  .login input{width:100%;margin-bottom:12px}
+  .err{color:#ef4444;font-size:13px;margin-top:8px;min-height:16px}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .tabs{display:flex;gap:8px;margin:6px 0 4px}
+  .tabs button{border-radius:999px;padding:7px 14px}
+  .tabs button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="login" class="login">
+  <h1>🔒 관리자 로그인</h1>
+  <p>최종 관리자만 전체 출석을 조회·다운로드할 수 있습니다.</p>
+  <input id="key" type="password" placeholder="관리자 키" autocapitalize="off" autocomplete="current-password">
+  <button class="primary" id="loginBtn" style="width:100%">로그인</button>
+  <div id="loginErr" class="err"></div>
+</div>
+
+<!-- 대시보드 -->
+<div id="main" class="hidden">
+  <header>
+    <h1>🌊 장흥 물축제 출석 · 관리자</h1>
+    <div class="grow"></div>
+    <div class="toolbar">
+      <label class="muted" style="font-size:12px"><input type="checkbox" id="auto" checked style="width:auto"> 자동새로고침</label>
+      <button id="refresh">새로고침</button>
+      <button class="primary" id="csv">엑셀(CSV) 다운로드</button>
+      <button id="logout">로그아웃</button>
+    </div>
+    <div style="flex-basis:100%"></div>
+    <span class="updated" id="updated"></span>
+  </header>
+
+  <div class="wrap">
+    <div class="hero">
+      <span class="big"><span id="present">0</span></span>
+      <span class="of">/ <span id="total">175</span> 명</span>
+      <span class="pct" id="pct">0%</span>
+      <span class="muted" id="rosterHint" style="font-size:12px"></span>
+    </div>
+    <div class="bar"><i id="heroBar"></i></div>
+
+    <div class="tabs">
+      <button class="on" data-tab="bus">차량별</button>
+      <button data-tab="country">국가별</button>
+      <button data-tab="teacher">인솔자별</button>
+    </div>
+    <div class="cards" id="cards"></div>
+
+    <h2 style="display:flex;align-items:center;gap:10px">
+      <span id="listTitle">출석 학생</span> <span class="pill" id="listPill">0</span>
+      <span class="grow"></span>
+      <label class="muted" style="font-size:12px;font-weight:400">
+        명단파일(로컬)로 미출석자 보기 <input type="file" id="rosterFile" accept=".json,.csv" style="font-size:12px">
+      </label>
+      <input id="search" placeholder="이름/학번 검색" style="font-size:13px">
+    </h2>
+    <div class="tabs" style="margin-top:0">
+      <button class="on" id="tabPresent">출석자</button>
+      <button id="tabAbsent">미출석자</button>
+    </div>
+    <div class="box">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:14px">
+      데이터는 Neon DB에 실시간 누적됩니다. 이 화면은 30초마다 갱신됩니다.
+      미출석자 명단은 관리자 PC의 <b>roster.json</b>(또는 명단 CSV)을 위에서 불러오면 표시됩니다(파일은 업로드되지 않고 브라우저 안에서만 사용).</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+const WORKER_URL = "https://mulchukje-proxy.hubertjung84.workers.dev";
+const TOTAL_DEFAULT = 175;
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let KEY = sessionStorage.getItem('ws_admin')||'';
+let rawRows=[];            // 서버 원본 스캔행
+let present={};            // 학번 -> 대표행(최초 checked)
+let roster=null;           // 로컬 명단(선택): [{학번,이름,국가,차량번호,전화번호,...}]
+let curTab='bus', curList='present', timer;
+
+/* ---- API ---- */
+async function apiAll(){
+  const res=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'all',adminKey:KEY})});
+  if(res.status===401) throw new Error('unauthorized');
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+/* ---- 로그인 ---- */
+$('loginBtn').onclick=doLogin;
+$('key').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+async function doLogin(){
+  KEY=$('key').value.trim();
+  if(!KEY){ $('loginErr').textContent='관리자 키를 입력하세요.'; return; }
+  $('loginErr').textContent='확인 중…';
+  try{
+    const d=await apiAll();
+    sessionStorage.setItem('ws_admin',KEY);
+    $('login').classList.add('hidden'); $('main').classList.remove('hidden');
+    apply(d); schedule();
+  }catch(e){
+    $('loginErr').textContent = e.message==='unauthorized' ? '관리자 키가 올바르지 않습니다.' : ('오류: '+e.message);
+  }
+}
+$('logout').onclick=()=>{ sessionStorage.removeItem('ws_admin'); location.reload(); };
+
+/* ---- 데이터 처리 ---- */
+function apply(d){
+  rawRows = (d && d.rows) || [];
+  present = {};
+  // 최초 checked 우선, 없으면 첫 행
+  rawRows.slice().reverse().forEach(r=>{           // 오래된 것부터
+    const h=String(r.hakbun);
+    if(!present[h] || (r.status==='checked' && present[h].status!=='checked')) present[h]=r;
+  });
+  render();
+  $('updated').textContent='업데이트 '+new Date().toLocaleTimeString('ko-KR');
+}
+
+function totals(){
+  // 로컬 roster 있으면 그것을, 없으면 기본 175 / 집계는 present 기준
+  const total = roster ? roster.length : TOTAL_DEFAULT;
+  return { total, presentCount:Object.keys(present).length };
+}
+
+function groupCounts(keyFn){
+  const g={};
+  Object.values(present).forEach(r=>{ const k=keyFn(r)||'미지정'; g[k]=g[k]||{present:0,total:0}; g[k].present++; });
+  if(roster){ roster.forEach(s=>{ const k=rosterKey(s)||'미지정'; g[k]=g[k]||{present:0,total:0}; g[k].total++; }); }
+  else Object.keys(g).forEach(k=>g[k].total=g[k].present);
+  return g;
+}
+function rosterKey(s){ return curTab==='bus'?(s['차량번호']||s.bus):curTab==='country'?(s['국가']||s.country):null; }
+
+function render(){
+  const {total,presentCount}=totals();
+  $('total').textContent=total; $('present').textContent=presentCount;
+  const pct=total?Math.round(presentCount/total*100):0;
+  $('pct').textContent=pct+'%'; $('heroBar').style.width=pct+'%';
+  $('rosterHint').textContent = roster ? `· 명단파일 ${roster.length}명 기준` : '· (명단파일 없음 · 총원 175 가정)';
+
+  // cards by tab
+  let g, order;
+  if(curTab==='bus'){ g=groupCounts(r=>r.bus); order=['1호차','2호차','3호차','4호차','5호차']; }
+  else if(curTab==='country'){ g=groupCounts(r=>r.country); order=null; }
+  else { // teacher: 스캔 실적
+    g={}; Object.values(present).forEach(()=>{});
+    const byT={}; rawRows.forEach(r=>{ const k=r.scanner||'미지정'; byT[k]=byT[k]||new Set(); byT[k].add(String(r.hakbun)); });
+    $('cards').innerHTML=Object.keys(byT).sort((a,b)=>byT[b].size-byT[a].size).map(k=>
+      `<div class="c"><div class="h"><span class="name">${esc(k)}</span><span class="num"><b>${byT[k].size}</b>명</span></div></div>`).join('')
+      || '<p class="muted">아직 스캔 없음</p>';
+    renderList(); return;
+  }
+  const keys=Object.keys(g).sort((a,b)=> order? ((order.indexOf(a)<0?99:order.indexOf(a))-(order.indexOf(b)<0?99:order.indexOf(b))) : g[b].total-g[a].total );
+  $('cards').innerHTML=keys.map(k=>{ const d=g[k]; const p=d.total?Math.round(d.present/d.total*100):0;
+    return `<div class="c"><div class="h"><span class="name">${esc(k)}</span><span class="num"><b>${d.present}</b>${roster?'/'+d.total:''}</span></div>
+      <div class="mini"><i style="width:${p}%"></i></div></div>`; }).join('');
+  renderList();
+}
+
+function renderList(){
+  const q=($('search').value||'').trim().toLowerCase();
+  const cols=['이름','학번','국가','차량','성별','전화','스캔인솔자','시각'];
+  $('thead').innerHTML='<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  let rows;
+  if(curList==='present'){
+    $('listTitle').textContent='출석 학생';
+    rows=Object.values(present).map(r=>[r.name,r.hakbun,r.country,r.bus,r.gender,r.phone,r.scanner,fmt(r.created_at)]);
+  }else{
+    $('listTitle').textContent='미출석자';
+    if(!roster){ $('tbody').innerHTML=`<tr><td colspan="8" class="muted">미출석자 명단은 위에서 <b>roster.json</b>(또는 명단 CSV)을 불러오면 표시됩니다.</td></tr>`; $('listPill').textContent='?'; return; }
+    rows=roster.filter(s=>!present[String(s['학번'])]).map(s=>[s['이름'],s['학번'],s['국가'],s['차량번호'],s['성별'],s['전화번호'],'','']);
+  }
+  if(q) rows=rows.filter(r=>String(r[0]).toLowerCase().includes(q)||String(r[1]).includes(q));
+  $('listPill').textContent=rows.length;
+  $('tbody').innerHTML=rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('')
+    || '<tr><td colspan="8" class="muted">결과 없음</td></tr>';
+}
+function fmt(ts){ if(!ts) return ''; const d=new Date(ts); return isNaN(d)?String(ts):
+  `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+
+/* ---- 탭 ---- */
+document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs [data-tab]').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  curTab=b.dataset.tab; render(); });
+$('tabPresent').onclick=()=>{ curList='present'; $('tabPresent').classList.add('on'); $('tabAbsent').classList.remove('on'); renderList(); };
+$('tabAbsent').onclick=()=>{ curList='absent'; $('tabAbsent').classList.add('on'); $('tabPresent').classList.remove('on'); renderList(); };
+$('search').addEventListener('input',renderList);
+
+/* ---- 로컬 명단 불러오기(미출석자용) ---- */
+$('rosterFile').addEventListener('change',ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    roster = f.name.toLowerCase().endsWith('.csv') ? parseCsv(rd.result) : JSON.parse(rd.result);
+    roster = roster.map(normalizeStudent);
+    render();
+  }catch(e){ alert('명단 파일을 읽지 못했습니다: '+e.message); } };
+  rd.readAsText(f,'utf-8');
+});
+function normalizeStudent(s){ return {
+  '학번':String(s['학번']||s.hakbun||'').trim(), '이름':s['이름']||s.name||'',
+  '국가':s['국가']||s.country||'', '차량번호':s['차량번호']||s.bus||'',
+  '성별':s['성별']||s.gender||'', '전화번호':s['전화번호']||s.phone||'' }; }
+function parseCsv(text){
+  const lines=text.replace(/^﻿/,'').split(/\r?\n/).filter(x=>x.length);
+  const head=splitCsvLine(lines[0]);
+  return lines.slice(1).map(l=>{ const c=splitCsvLine(l); const o={}; head.forEach((h,i)=>o[h.trim()]=c[i]); return o; });
+}
+function splitCsvLine(l){ const out=[]; let cur='',q=false;
+  for(let i=0;i<l.length;i++){ const ch=l[i];
+    if(q){ if(ch==='"'){ if(l[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else { if(ch===','){out.push(cur);cur='';} else if(ch==='"')q=true; else cur+=ch; } }
+  out.push(cur); return out; }
+
+/* ---- CSV 다운로드(전체 출석) ---- */
+$('csv').onclick=()=>{
+  const head=['학번','이름','국가','소속차량','성별','전화','스캔인솔자','스캔차량','상태','시각'];
+  const rows=Object.values(present).map(r=>[r.hakbun,r.name,r.country,r.bus,r.gender,r.phone,r.scanner,r.scan_bus,
+    r.status==='checked'?'출석':r.status, isoLocal(r.created_at)]);
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const csv='﻿'+[head.map(q).join(',')].concat(rows.map(r=>r.map(q).join(','))).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='장흥물축제_출석_'+isoLocal(new Date()).replace(/[: ]/g,'').slice(0,13)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+function isoLocal(ts){ const d=new Date(ts); if(isNaN(d)) return '';
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+
+/* ---- 새로고침 ---- */
+$('refresh').onclick=load;
+$('auto').onchange=schedule;
+async function load(){ try{ apply(await apiAll()); }catch(e){ $('updated').textContent='오류: '+e.message; if(e.message==='unauthorized'){ sessionStorage.removeItem('ws_admin'); location.reload(); } } }
+function schedule(){ clearInterval(timer); if($('auto').checked) timer=setInterval(load,30000); }
+
+/* ---- init ---- */
+(function init(){ if(KEY){ $('key').value=KEY; doLogin(); } })();
+</script>
+</body>
+</html>
