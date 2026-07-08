@@ -41,12 +41,13 @@
   #result.dup .status{background:var(--dup)}
   #result.err .status{background:var(--err)}
   #result.pending .status{background:#475569}
+  #result.confirm .status{background:#2563eb}
   #result .body{padding:16px 18px 6px}
   #result .name{font-size:26px;font-weight:800;margin:0 0 2px}
   #result .en{color:var(--sub);font-size:14px;margin:0 0 12px}
   #result .grid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:15px}
   #result .grid .k{color:var(--sub)}
-  #result .foot{padding:14px 18px 18px}
+  #result .foot{padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px}
 
   #bar{background:var(--card);border-top:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:12px}
   #bar .cnt{font-size:13px;color:var(--sub)}
@@ -111,7 +112,10 @@
       <p class="en" id="rEn"></p>
       <div class="grid" id="rGrid"></div>
     </div>
-    <div class="foot"><button class="btn" id="rClose">확인 (계속 스캔)</button></div>
+    <div class="foot">
+      <button class="btn" id="rConfirm">✅ 확인 · 출석 전송</button>
+      <button class="btn ghost" id="rCancel">취소</button>
+    </div>
   </div>
 </div>
 
@@ -157,6 +161,7 @@ let teacher = get(LS.teacher), bus = get(LS.bus);
 let scanLog = JSON.parse(get(LS.log) || '[]');
 let queue   = JSON.parse(get(LS.queue) || '[]');
 let scanCount = scanLog.length;
+let sentSet = new Set(scanLog.map(e=>e['학번']).filter(Boolean));  // 이 기기에서 이미 스캔한 학번
 
 /* ---------------- QR parse ---------------- */
 function parseQR(text){
@@ -201,21 +206,44 @@ setInterval(flushQueue, 15000);
 window.addEventListener('online', flushQueue);
 
 /* ---------------- result overlay ---------------- */
-let overlayOpen=false;
-function showResult(kind, student){
-  overlayOpen=true;
-  const el=$('result'); el.className=''; el.classList.add(kind);
-  const map={ok:'✅ 출석 완료', dup:'⚠️ 이미 출석함', err:'⛔ 전송 실패', pending:'📶 전송 대기(오프라인)'};
-  $('rStatus').textContent=map[kind]||'';
-  const s=student||{};
-  $('rName').textContent=s['이름']||'(이름없음)';
+let overlayOpen=false, pendingStudent=null;
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function fillInfo(s){
+  s=s||{};
+  $('rName').textContent = s['이름'] || (s['학번']?('학번 '+s['학번']):'(정보없음)');
   $('rEn').textContent='';
   const rows=[['학번',s['학번']],['국가',s['국가']],['차량',s['차량번호']],['성별',s['성별']],['전화',s['전화번호']]].filter(r=>r[1]);
   $('rGrid').innerHTML=rows.map(r=>`<div class="k">${r[0]}</div><div>${esc(r[1])}</div>`).join('');
-  el.style.display='flex'; beep(kind); vibrate(kind);
 }
-function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-$('rClose').onclick=()=>{ $('result').style.display='none'; overlayOpen=false; resumeScan(); };
+/* kind: confirm | ok | dup | pending  · primaryText 없으면 확인버튼 숨김 */
+function openOverlay(kind, title, student, primaryText, secondaryText){
+  overlayOpen=true;
+  const el=$('result'); el.className=''; el.classList.add(kind);
+  $('rStatus').textContent=title; fillInfo(student);
+  if(primaryText){ $('rConfirm').style.display=''; $('rConfirm').textContent=primaryText; }
+  else $('rConfirm').style.display='none';
+  $('rCancel').style.display=''; $('rCancel').textContent=secondaryText||'닫기';
+  el.style.display='flex';
+}
+function closeOverlay(){ $('result').style.display='none'; overlayOpen=false; pendingStudent=null; resumeScan(); }
+$('rCancel').onclick=closeOverlay;
+
+/* [확인] → 이때 실제로 웹(Worker/Neon)으로 전송 */
+$('rConfirm').onclick=async ()=>{
+  const s=pendingStudent; if(!s) return; pendingStudent=null;
+  openOverlay('pending','전송 중…', s, null, '닫기'); $('rCancel').style.display='none';
+  try{
+    const r=await sendCheckin(s);
+    const dup = r && r.status==='duplicate';
+    sentSet.add(s['학번']); recordLog(s, dup?'dup':'ok');
+    beep(dup?'dup':'ok'); vibrate(dup?'dup':'ok');
+    openOverlay(dup?'dup':'ok', dup?'⚠️ 이미 출석 처리된 학생':'✅ 출석 완료', s, null, '계속 스캔');
+  }catch(e){
+    sentSet.add(s['학번']); recordLog(s,'pending');
+    openOverlay('pending','📶 전송대기(오프라인) · 연결되면 자동 전송', s, null, '계속 스캔');
+  }
+  $('rCancel').style.display='';
+};
 
 let ac;
 function beep(kind){ try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)();
@@ -248,16 +276,17 @@ function tick(){
     lastCode=code.data; lastTime=now; onDecoded(code.data);
   }
 }
-function onDecoded(text){ const qr=parseQR(text); if(!qr) return; scanning=false; handleStudent(qr); }
+function onDecoded(text){ const qr=parseQR(text); if(!qr) return; presentStudent(qr); }
 
-async function handleStudent(qr){
-  showResult('pending', qr);
-  try{
-    const r=await sendCheckin(qr);
-    const kind = (r && r.status==='duplicate') ? 'dup' : 'ok';
-    showResult(kind, qr); recordLog(qr, kind);
-  }catch(e){
-    showResult('pending', qr); recordLog(qr, 'pending');
+/* 스캔/직접입력 공통: 정보 확인 카드 표시 (아직 전송 안 함) */
+function presentStudent(qr){
+  scanning=false;
+  if(sentSet.has(qr['학번'])){
+    beep('dup'); vibrate('dup'); pendingStudent=null;
+    openOverlay('dup','⚠️ 이미 스캔한 학생입니다', qr, null, '닫기');   // 중복 → 전송 안 함
+  }else{
+    beep('ok'); vibrate('ok'); pendingStudent=qr;
+    openOverlay('confirm','🔍 정보 확인 후 전송', qr, '✅ 확인 · 출석 전송', '취소');
   }
 }
 function recordLog(s, status){
@@ -283,7 +312,7 @@ $('manualBtn').onclick=()=>{ scanning=false; show('manual'); $('manualNum').valu
 $('manualBack').onclick=()=>{ show('app'); resumeScan(); };
 $('manualSend').onclick=()=>{ const h=$('manualNum').value.trim();
   if(!/^\d{6,10}$/.test(h)){ alert('학번을 정확히 입력하세요.'); return; }
-  show('app'); handleStudent({'학번':h}); };
+  show('app'); presentStudent({'학번':h}); };
 
 $('logBtn').onclick=()=>{ scanning=false; renderLog(); show('logView'); };
 $('logBack').onclick=()=>{ show('app'); resumeScan(); };
