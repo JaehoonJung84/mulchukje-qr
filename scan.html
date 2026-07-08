@@ -72,15 +72,11 @@
   <p class="desc">인솔 선생님용 · QR을 카메라로 찍으면 출석이 자동 기록됩니다.</p>
   <label>인솔자 이름</label>
   <input id="teacher" placeholder="예) 홍길동" autocomplete="name">
-  <label>담당 차량</label>
-  <select id="bus">
-    <option value="">전체 (차량 무관)</option>
-    <option>1호차</option><option>2호차</option><option>3호차</option>
-    <option>4호차</option><option>5호차</option>
-  </select>
   <div style="height:18px"></div>
   <button class="btn" id="startBtn">스캔 시작</button>
   <div id="setupMsg" class="queue"></div>
+  <div style="height:32px"></div>
+  <a class="btn ghost" href="admin.html" style="display:block;text-align:center;text-decoration:none;font-weight:700">🔒 관리자 로그인 (이형헌 전용)</a>
 </div>
 
 <!-- ===== SCANNER ===== -->
@@ -157,7 +153,7 @@ const $ = id => document.getElementById(id);
 const get = k => localStorage.getItem(k) || '';
 const set = (k,v) => localStorage.setItem(k,v);
 
-let teacher = get(LS.teacher), bus = get(LS.bus);
+let teacher = get(LS.teacher), bus = '';
 let scanLog = JSON.parse(get(LS.log) || '[]');
 let queue   = JSON.parse(get(LS.queue) || '[]');
 let scanCount = scanLog.length;
@@ -299,12 +295,12 @@ function recordLog(s, status){
 /* ---------------- views ---------------- */
 function show(view){ ['setup','app','manual','logView'].forEach(v=>$(v).classList.toggle('hidden', v!==view)); }
 function renderQueueCount(){ if($('qcount')) $('qcount').textContent = queue.length? `· 전송대기 ${queue.length}` : ''; }
-function renderWho(){ $('whoLabel').innerHTML=`${esc(teacher||'이름미설정')}<br>${esc(bus||'전체')}`; }
+function renderWho(){ $('whoLabel').textContent = teacher||'이름미설정'; }
 
 $('startBtn').onclick=()=>{
-  teacher=$('teacher').value.trim(); bus=$('bus').value;
+  teacher=$('teacher').value.trim();
   if(!teacher){ $('setupMsg').textContent='인솔자 이름을 입력하세요.'; return; }
-  set(LS.teacher,teacher); set(LS.bus,bus);
+  set(LS.teacher,teacher);
   renderWho(); renderQueueCount(); show('app'); startCamera();
 };
 
@@ -343,13 +339,13 @@ function downloadCsv(head, rows, filename){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
-$('setBtn').onclick=()=>{ scanning=false; $('teacher').value=teacher; $('bus').value=bus;
+$('setBtn').onclick=()=>{ scanning=false; $('teacher').value=teacher;
   $('startBtn').textContent='저장하고 계속'; show('setup'); };
 
 /* init */
 (function init(){
   renderQueueCount();
-  $('teacher').value=teacher; $('bus').value=bus;
+  $('teacher').value=teacher;
   if(teacher){ renderWho(); show('app'); $('cnt').textContent=scanCount; startCamera(); }
   else show('setup');
 })();

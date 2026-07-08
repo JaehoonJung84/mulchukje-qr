@@ -68,6 +68,7 @@
       <label class="muted" style="font-size:12px"><input type="checkbox" id="auto" checked style="width:auto"> 자동새로고침</label>
       <button id="refresh">새로고침</button>
       <button class="primary" id="csv">엑셀(CSV) 다운로드</button>
+      <button id="delAll" style="border-color:#ef4444;color:#ef4444">명단 전체삭제</button>
       <button id="logout">로그아웃</button>
     </div>
     <div style="flex-basis:100%"></div>
@@ -211,7 +212,9 @@ function render(){
 function renderList(){
   const q=($('search').value||'').trim().toLowerCase();
   const cols=['이름','학번','국가','차량','성별','전화','스캔인솔자','시각'];
-  $('thead').innerHTML='<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  const showDel = curList==='present';
+  const head = showDel ? cols.concat(['삭제']) : cols;
+  $('thead').innerHTML='<tr>'+head.map(c=>`<th>${c}</th>`).join('')+'</tr>';
   let rows;
   if(curList==='present'){
     $('listTitle').textContent='출석 학생';
@@ -223,8 +226,11 @@ function renderList(){
   }
   if(q) rows=rows.filter(r=>String(r[0]).toLowerCase().includes(q)||String(r[1]).includes(q));
   $('listPill').textContent=rows.length;
-  $('tbody').innerHTML=rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('')
-    || '<tr><td colspan="8" class="muted">결과 없음</td></tr>';
+  $('tbody').innerHTML=rows.map(r=>{
+    let tds='<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('');
+    if(showDel) tds+=`<td><button class="delrow" data-hakbun="${esc(r[1])}" style="color:#ef4444;border-color:#ef4444;padding:4px 9px">삭제</button></td>`;
+    return tds+'</tr>';
+  }).join('') || `<tr><td colspan="${head.length}" class="muted">결과 없음</td></tr>`;
 }
 function fmt(ts){ if(!ts) return ''; const d=new Date(ts); return isNaN(d)?String(ts):
   `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
@@ -278,6 +284,28 @@ $('csv').onclick=()=>{
 function isoLocal(ts){ const d=new Date(ts); if(isNaN(d)) return '';
   const p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+
+/* ---- 삭제 (관리자 전용) ---- */
+async function apiDelete(extra){
+  const res=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(Object.assign({action:'delete',adminKey:KEY},extra))});
+  if(res.status===401) throw new Error('unauthorized');
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+$('delAll').onclick=async ()=>{
+  if(!confirm('⚠️ 전체 출석 명단을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?')) return;
+  if(!confirm('정말입니까? 모든 스캔 기록이 사라집니다.')) return;
+  try{ const r=await apiDelete({all:true}); alert(`${r.deleted}건 삭제되었습니다.`); load(); }
+  catch(e){ alert('삭제 실패: '+e.message); }
+};
+$('tbody').addEventListener('click', async e=>{
+  const b=e.target.closest('.delrow'); if(!b) return;
+  const h=b.dataset.hakbun;
+  if(!confirm(`학번 ${h} 학생의 출석 기록을 삭제할까요?`)) return;
+  try{ await apiDelete({hakbun:h}); load(); }
+  catch(err){ alert('삭제 실패: '+err.message); }
+});
 
 /* ---- 새로고침 ---- */
 $('refresh').onclick=load;
