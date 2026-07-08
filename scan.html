@@ -162,6 +162,14 @@
 <script src="lib/jsQR.js"></script>
 <script>
 "use strict";
+/* ================= 관리자 설정 =================
+   아래 따옴표 안에 Apps Script 배포 URL(.../exec)을 한 번만 넣으면,
+   인솔 선생님 화면에서는 '서버 주소' 입력란이 사라지고 이름·차량만 고르면 됩니다.
+   예) const HARDCODED_GAS = "https://script.google.com/macros/s/AKfy.../exec";
+   비워두면(""), 테스트용으로 입력란이 나타납니다. */
+const HARDCODED_GAS = "";
+/* ============================================== */
+
 /* ---------------- config / storage ---------------- */
 const LS = {
   teacher:'ws_teacher', bus:'ws_bus', gas:'ws_gas',
@@ -171,7 +179,7 @@ const $ = id => document.getElementById(id);
 const get = k => localStorage.getItem(k) || '';
 const set = (k,v) => localStorage.setItem(k,v);
 
-let teacher = get(LS.teacher), bus = get(LS.bus), GAS = get(LS.gas);
+let teacher = get(LS.teacher), bus = get(LS.bus), GAS = HARDCODED_GAS || get(LS.gas);
 let scanLog = JSON.parse(get(LS.log) || '[]');       // {학번,이름,국가,차량,status,ts}
 let queue   = JSON.parse(get(LS.queue) || '[]');     // failed sends to retry
 let scanCount = scanLog.length;
@@ -347,12 +355,18 @@ function renderWho(){ $('whoLabel').innerHTML = `${esc(teacher||'이름미설정
 
 /* start */
 $('startBtn').onclick = ()=>{
-  teacher=$('teacher').value.trim(); bus=$('bus').value; GAS=$('gasUrl').value.trim();
+  teacher=$('teacher').value.trim(); bus=$('bus').value;
   if(!teacher){ $('setupMsg').textContent='인솔자 이름을 입력하세요.'; return; }
-  if(!(/^https:\/\/.+/.test(GAS) ||
-       /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?\//.test(GAS))){
-    $('setupMsg').textContent='올바른 서버 주소(https://... 또는 .../exec)를 입력하세요.'; return; }
-  set(LS.teacher,teacher); set(LS.bus,bus); set(LS.gas,GAS);
+  if(HARDCODED_GAS){
+    GAS = HARDCODED_GAS;                      // 관리자가 박아둔 주소 사용 (선생님은 입력 불필요)
+  }else{
+    GAS=$('gasUrl').value.trim();
+    if(!(/^https:\/\/.+/.test(GAS) ||
+         /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?\//.test(GAS))){
+      $('setupMsg').textContent='올바른 서버 주소(https://... 또는 .../exec)를 입력하세요.'; return; }
+    set(LS.gas,GAS);
+  }
+  set(LS.teacher,teacher); set(LS.bus,bus);
   renderWho(); renderQueueCount(); show('app'); startCamera();
 };
 
@@ -386,11 +400,11 @@ $('setBtn').onclick=()=>{ scanning=false;
 /* init */
 (function init(){
   renderQueueCount();
-  if(teacher && GAS){ // returning user
-    $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value=GAS;
+  if(HARDCODED_GAS){ $('gasWrap').classList.add('hidden'); }  // 선생님 화면에서 서버주소 숨김
+  $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value = HARDCODED_GAS ? '' : GAS;
+  if(teacher && GAS){ // returning user → 바로 스캔
     renderWho(); show('app'); $('cnt').textContent=scanCount; startCamera();
   }else{
-    $('teacher').value=teacher; $('bus').value=bus; $('gasUrl').value=GAS;
     show('setup');
   }
 })();

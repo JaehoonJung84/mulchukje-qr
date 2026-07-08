@@ -106,9 +106,12 @@
 
 <script>
 "use strict";
+/* 관리자 설정: 여기에 Apps Script 배포 URL(.../exec)을 넣으면 설정화면 없이 바로 현황이 뜹니다.
+   scan.html 의 HARDCODED_GAS 와 같은 주소를 넣으면 됩니다. 비우면 입력화면이 나옵니다. */
+var HARDCODED_GAS = "";
 var LS='ws_gas';
 var $=function(id){return document.getElementById(id);};
-var GAS=localStorage.getItem(LS)||'';
+var GAS=HARDCODED_GAS||localStorage.getItem(LS)||'';
 var allAbsent=[];
 
 function jsonp(params){
