@@ -229,10 +229,9 @@ async function reconcileWithServer(){
   const before=scanLog.length;
   scanLog=scanLog.filter(e=>{
     const h=String(e['학번']||'');
-    if(e.status==='pending') return true;                // 미전송 보존
-    if(queuedSet.has(h)) return true;                    // 전송대기 보존
-    if(now-(e.ts||0) < 60000) return true;               // 방금 기록(전송-조회 경쟁 방지)
-    return serverSet.has(h);                             // 전송된 것: 서버에 남아있을 때만 유지
+    if(queuedSet.has(h)) return true;                    // 아직 못 보내 '재전송 대기(큐)' 중인 것만 보존
+    if(now-(e.ts||0) < 60000) return true;               // 방금(60초 이내) 기록 — 전송-조회 경쟁 방지
+    return serverSet.has(h);                             // 그 외: 서버에 있을 때만 유지(관리자 삭제 → 폰에서도 사라짐)
   });
   sentSet=new Set(scanLog.map(e=>e['학번']).filter(Boolean).map(String));
   scanCount=scanLog.length;
