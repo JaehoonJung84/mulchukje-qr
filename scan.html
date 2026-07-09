@@ -201,6 +201,48 @@ async function flushQueue(){
 setInterval(flushQueue, 15000);
 window.addEventListener('online', flushQueue);
 
+/* ---------------- 서버와 동기화 (관리자 삭제 반영) ----------------
+   선생님 폰의 "내 스캔/내 명단"을 서버(이 인솔자의 현재 기록)와 맞춘다.
+   관리자가 서버에서 삭제하면 → 서버에서 사라짐 → 여기서도 사라짐(재스캔 가능).
+   보존 규칙: 아직 전송 안 된(pending) 항목, 전송대기열 항목, 방금(60초 이내) 기록한 항목은 지우지 않음.
+   Worker에 'mine' 액션이 없거나 오프라인이면 아무것도 바꾸지 않음(기존 로컬 그대로). */
+async function apiMine(){
+  const res = await fetch(WORKER_URL, {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ action:'mine', teacher }),
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json(); // { hakbuns:[...] }
+}
+let syncing=false;
+async function reconcileWithServer(){
+  if(!teacher || syncing) return;
+  syncing=true;
+  let data=null;
+  try{ data=await apiMine(); }
+  catch(e){ syncing=false; return; }                    // 조회 실패 → 로컬 유지
+  syncing=false;
+  if(!data || !Array.isArray(data.hakbuns)) return;      // 구버전 Worker(mine 미지원) → 무시
+  const serverSet=new Set(data.hakbuns.map(String));
+  const queuedSet=new Set(queue.map(q=>q.student && q.student['학번']).filter(Boolean).map(String));
+  const now=Date.now();
+  const before=scanLog.length;
+  scanLog=scanLog.filter(e=>{
+    const h=String(e['학번']||'');
+    if(e.status==='pending') return true;                // 미전송 보존
+    if(queuedSet.has(h)) return true;                    // 전송대기 보존
+    if(now-(e.ts||0) < 60000) return true;               // 방금 기록(전송-조회 경쟁 방지)
+    return serverSet.has(h);                             // 전송된 것: 서버에 남아있을 때만 유지
+  });
+  sentSet=new Set(scanLog.map(e=>e['학번']).filter(Boolean).map(String));
+  scanCount=scanLog.length;
+  persistLog();
+  if($('cnt')) $('cnt').textContent=scanCount;
+  if(!$('logView').classList.contains('hidden')) renderLog();
+}
+setInterval(()=>{ if(!$('app').classList.contains('hidden') || !$('logView').classList.contains('hidden')) reconcileWithServer(); }, 30000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) reconcileWithServer(); });
+
 /* ---------------- result overlay ---------------- */
 let overlayOpen=false, pendingStudent=null;
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
@@ -301,7 +343,7 @@ $('startBtn').onclick=()=>{
   teacher=$('teacher').value.trim();
   if(!teacher){ $('setupMsg').textContent='인솔자 이름을 입력하세요.'; return; }
   set(LS.teacher,teacher);
-  renderWho(); renderQueueCount(); show('app'); startCamera();
+  renderWho(); renderQueueCount(); show('app'); startCamera(); reconcileWithServer();
 };
 
 $('manualBtn').onclick=()=>{ scanning=false; show('manual'); $('manualNum').value=''; setTimeout(()=>$('manualNum').focus(),50); };
@@ -310,7 +352,7 @@ $('manualSend').onclick=()=>{ const h=$('manualNum').value.trim();
   if(!/^\d{6,10}$/.test(h)){ alert('학번을 정확히 입력하세요.'); return; }
   show('app'); presentStudent({'학번':h}); };
 
-$('logBtn').onclick=()=>{ scanning=false; renderLog(); show('logView'); };
+$('logBtn').onclick=()=>{ scanning=false; renderLog(); show('logView'); reconcileWithServer(); };
 $('logBack').onclick=()=>{ show('app'); resumeScan(); };
 function renderLog(){
   $('logWho').textContent=teacher||'';
@@ -346,7 +388,7 @@ $('setBtn').onclick=()=>{ scanning=false; $('teacher').value=teacher;
 (function init(){
   renderQueueCount();
   $('teacher').value=teacher;
-  if(teacher){ renderWho(); show('app'); $('cnt').textContent=scanCount; startCamera(); }
+  if(teacher){ renderWho(); show('app'); $('cnt').textContent=scanCount; startCamera(); reconcileWithServer(); }
   else show('setup');
 })();
 </script>
